@@ -18,3 +18,5 @@ analytics/dbt_packages/
 
 # macOS
 .DS_Store
+
+.env

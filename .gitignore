@@ -1,0 +1,20 @@
+# Virtual environment
+.venv/
+
+# Python
+__pycache__/
+*.py[cod]
+
+# Environment variables
+.env
+
+# dbt
+analytics/target/
+analytics/logs/
+analytics/dbt_packages/
+
+# VS Code
+.vscode/
+
+# macOS
+.DS_Store

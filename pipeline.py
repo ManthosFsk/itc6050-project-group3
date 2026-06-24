@@ -1,21 +1,43 @@
-import os
+import requests
+import dlt
 
-import psycopg2
-from dotenv import load_dotenv
 
-# Load environment variables from .env
-load_dotenv()
+@dlt.resource(
+    name="coins",
+    columns={
+        "current_price": {"data_type": "double"}
+    }
+)
+def coins():
 
-# Connect to PostgreSQL
-connection = psycopg2.connect(
-    host=os.getenv("DESTINATION__POSTGRES__CREDENTIALS__HOST"),
-    port=os.getenv("DESTINATION__POSTGRES__CREDENTIALS__PORT"),
-    database=os.getenv("DESTINATION__POSTGRES__CREDENTIALS__DATABASE"),
-    user=os.getenv("DESTINATION__POSTGRES__CREDENTIALS__USERNAME"),
-    password=os.getenv("DESTINATION__POSTGRES__CREDENTIALS__PASSWORD"),
+    url = (
+        "https://api.coingecko.com/api/v3/coins/markets"
+        "?vs_currency=usd"
+        "&order=market_cap_desc"
+        "&per_page=50"
+    )
+
+    response = requests.get(url)
+    response.raise_for_status()
+
+    data = response.json()
+
+    print(data[0]["current_price"])
+    print(data[1]["current_price"])
+
+    yield data
+
+
+pipeline = dlt.pipeline(
+    pipeline_name="crypto_market_pipeline",
+    destination="postgres",
+    dataset_name="raw"
 )
 
-print("✅ Connected successfully!")
+load_info = pipeline.run(
+    coins(),
+    table_name="coins",
+    write_disposition="replace"
+)
 
-connection.close()
-print("Connection closed.")
+print(load_info)

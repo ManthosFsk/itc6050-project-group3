@@ -1,0 +1,13 @@
+crypto_market:
+  target: dev
+
+  outputs:
+    dev:
+      type: postgres
+      host: localhost
+      port: 5432
+      user: itc6050
+      password: itc6050
+      dbname: crypto_market
+      schema: analytics
+      threads: 1

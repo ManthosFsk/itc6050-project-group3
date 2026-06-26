@@ -1,0 +1,11 @@
+version: 2
+
+sources:
+  - name: raw
+    database: crypto_market
+    schema: raw
+
+    tables:
+      - name: coins
+
+      - name: coin_history

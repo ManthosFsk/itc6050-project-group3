@@ -1,0 +1,56 @@
+version: 2
+
+models:
+  - name: stg_coins
+    description: "Staging model for CoinGecko market data"
+
+    columns:
+      - name: id
+        tests:
+          - unique
+          - not_null
+
+      - name: name
+        tests:
+          - not_null
+
+      - name: current_price
+        tests:
+          - not_null
+
+      - name: market_cap_rank
+        tests:
+          - not_null
+
+  - name: stg_coin_history
+    description: "Staging model for historical coin prices"
+
+    columns:
+      - name: coin_id
+        tests:
+          - not_null
+
+      - name: date
+        tests:
+          - not_null
+
+      - name: price
+        tests:
+          - not_null
+
+  - name: daily_market_summary
+    description: "Daily market summary"
+
+    columns:
+      - name: date
+        tests:
+          - unique
+          - not_null
+
+      - name: total_market_cap
+        tests:
+          - not_null
+
+      - name: top_coin_by_volume
+        tests:
+          - not_null

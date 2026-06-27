@@ -82,6 +82,43 @@ coin_history = pd.read_sql(
     engine
 )
 
+
+# ==========================================================
+# Sidebar Filters
+# ==========================================================
+
+st.sidebar.header("⚙ Dashboard Filters")
+
+top_n = st.sidebar.selectbox(
+
+    "Top N Coins",
+
+    [5, 10, 15, 20, 25, 50],
+
+    index=1
+
+)
+
+coin_history["date"] = pd.to_datetime(
+    coin_history["date"]
+)
+
+start_date = coin_history["date"].min().date()
+
+end_date = coin_history["date"].max().date()
+
+date_range = st.sidebar.date_input(
+
+    "Date Range",
+
+    value=(start_date, end_date),
+
+    min_value=start_date,
+
+    max_value=end_date
+
+)
+
 # ==========================================================
 # Header
 # ==========================================================
@@ -145,12 +182,12 @@ st.divider()
 # Top 10 Market Capitalization
 # ==========================================================
 
-st.subheader("🏆 Top 10 Cryptocurrencies by Market Capitalization")
+st.subheader(f"🏆 Top {top_n} Cryptocurrencies by Market Capitalization")
 
 top10 = (
     coins
     .sort_values("market_cap", ascending=False)
-    .head(10)
+    .head(top_n)
     .copy()
 )
 
@@ -499,42 +536,3 @@ with col2:
     )
 
 st.divider()
-
-# ==========================================================
-# Sidebar Filters
-# ==========================================================
-
-'''st.sidebar.header("⚙ Dashboard Filters")
-
-top_n = st.sidebar.slider(
-
-    "Top N Coins",
-
-    min_value=5,
-
-    max_value=50,
-
-    value=10,
-
-    step=5
-
-)
-
-coin_history["date"] = pd.to_datetime(coin_history["date"])
-
-min_date = coin_history["date"].min().date()
-max_date = coin_history["date"].max().date()
-
-date_range = st.sidebar.date_input(
-
-    "Date Range",
-
-    value=(min_date, max_date),
-
-    min_value=min_date,
-
-    max_value=max_date
-
-)
-'''
-

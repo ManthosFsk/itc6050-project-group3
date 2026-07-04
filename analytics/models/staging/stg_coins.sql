@@ -22,7 +22,7 @@ renamed AS (
 
     FROM source
 
-    WHERE current_price IS NOT NULL
+    WHERE current_price > 0
 
 )
 

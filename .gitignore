@@ -22,3 +22,5 @@ analytics/dbt_packages/
 .dlt/
 
 analytics/profiles.yml
+
+logs/

@@ -4,15 +4,14 @@ from datetime import datetime
 import dlt
 import requests
 
+import os
+from dotenv import load_dotenv
 
 # ------------------------------------------------------------
 # HTTP session
 # ------------------------------------------------------------
 
 session = requests.Session()
-
-import os
-from dotenv import load_dotenv
 
 load_dotenv()
 

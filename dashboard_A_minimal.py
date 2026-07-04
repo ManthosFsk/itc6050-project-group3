@@ -45,10 +45,14 @@ html, body, [data-testid="stAppViewContainer"], [data-testid="stApp"] {
 [data-testid="stSidebar"] input,
 [data-testid="stSidebar"] [data-baseweb="select"] div {
     color: #111827 !important;
-}         
+}
 
 /* ── KPI Cards ── */
 .kpi-card {
+    height: 160px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
     background: linear-gradient(135deg, #161b22 0%, #1c2128 100%);
     border: 1px solid #30363d;
     border-radius: 12px;
@@ -89,11 +93,6 @@ hr {
     border-color: #30363d !important;
 }
 
-/* ── Dataframe ── */
-[data-testid="stDataFrame"] {
-    background-color: #161b22 !important;
-}
-
 /* ── Selectbox / Slider ── */
 [data-testid="stSelectbox"] > div,
 [data-testid="stSlider"] {
@@ -103,7 +102,6 @@ hr {
 
 [data-testid="stMetric"] { display: none; }
 
-/* ── Equal KPI columns ── */
 [data-testid="column"] {
     padding: 0 4px !important;
 }
@@ -112,21 +110,74 @@ hr {
     height: 100%;
 }
 
-.kpi-card {
-    height: 160px;
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    background: linear-gradient(135deg, #161b22 0%, #1c2128 100%) !important;
-    border: 1px solid #30363d !important;
-    border-radius: 12px !important;
-    padding: 24px 16px 20px 16px !important;
-    text-align: center !important;
-    margin: 4px !important;
+/* ── Custom Dark Tables (Style A: minimal) ── */
+.dark-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 14px;
+    margin-bottom: 8px;
 }
+
+.dark-table th {
+    text-align: left;
+    color: #8b949e;
+    font-weight: 500;
+    padding: 10px 12px;
+    text-transform: uppercase;
+    font-size: 11px;
+    letter-spacing: 0.05em;
+    border-bottom: 1px solid #30363d;
+}
+
+.dark-table td {
+    padding: 10px 12px;
+    border-bottom: 1px solid #21262d;
+    color: #e6edf3;
+    vertical-align: middle;
+}
+
+.dark-table tr:hover td {
+    background-color: #161b22;
+}
+
+.dark-table img {
+    border-radius: 50%;
+    vertical-align: middle;
+}
+
+.change-up { color: #3fb950; font-weight: 600; }
+.change-down { color: #f85149; font-weight: 600; }
 
 </style>
 """, unsafe_allow_html=True)
+
+# ==========================================================
+# Dark table renderer
+# ==========================================================
+
+def render_dark_table(df, columns_config):
+    header_html = "".join(f"<th>{c['label']}</th>" for c in columns_config)
+
+    rows_html = ""
+    for _, row in df.iterrows():
+        cells = ""
+        for c in columns_config:
+            val = row[c["col"]]
+            if c["type"] == "image":
+                cells += f'<td><img src="{val}" width="24" height="24"></td>'
+            elif c["type"] == "change":
+                css_class = "change-up" if "🟢" in str(val) else "change-down"
+                cells += f'<td class="{css_class}">{val}</td>'
+            else:
+                cells += f"<td>{val}</td>"
+        rows_html += f"<tr>{cells}</tr>"
+
+    st.markdown(f"""
+    <table class="dark-table">
+        <thead><tr>{header_html}</tr></thead>
+        <tbody>{rows_html}</tbody>
+    </table>
+    """, unsafe_allow_html=True)
 
 # ==========================================================
 # PostgreSQL Connection
@@ -341,19 +392,14 @@ top_table["price_change_percentage_24h"] = top_table["price_change_percentage_24
     lambda x: f"🟢 {x:.2f}%" if x >= 0 else f"🔴 {x:.2f}%"
 )
 
-st.dataframe(
-    top_table,
-    hide_index=True,
-    width="stretch",
-    column_config={
-        "image": st.column_config.ImageColumn("Logo", width="small"),
-        "symbol": st.column_config.TextColumn("Symbol", width="small"),
-        "name": st.column_config.TextColumn("Name", width="medium"),
-        "current_price": st.column_config.TextColumn("Price", width="small"),
-        "market_cap": st.column_config.TextColumn("Market Cap", width="small"),
-        "price_change_percentage_24h": st.column_config.TextColumn("24h Change", width="small"),
-    }
-)
+render_dark_table(top_table, [
+    {"col": "image", "label": "Logo", "type": "image"},
+    {"col": "symbol", "label": "Symbol", "type": "text"},
+    {"col": "name", "label": "Name", "type": "text"},
+    {"col": "current_price", "label": "Price", "type": "text"},
+    {"col": "market_cap", "label": "Market Cap", "type": "text"},
+    {"col": "price_change_percentage_24h", "label": "24h Change", "type": "change"},
+])
 
 st.divider()
 
@@ -375,7 +421,7 @@ fig_treemap = px.treemap(
     color="price_change_percentage_24h",
     color_continuous_scale=[[0, "#f85149"], [0.5, "#30363d"], [1, "#3fb950"]],
     color_continuous_midpoint=0,
-    range_color=[-10, 10],   # ← σταθερό εύρος, ανεξάρτητο από outliers
+    range_color=[-10, 10],
     custom_data=["symbol", "share", "price_change_percentage_24h"]
 )
 
@@ -527,18 +573,13 @@ volatility_df["volatility_score"] = volatility_df["volatility_score"].map(
     lambda x: f"${x:,.4f}" if x < 1 else f"${x:,.2f}"
 )
 
-st.dataframe(
-    volatility_df,
-    hide_index=True,
-    width="stretch",
-    column_config={
-        "image": st.column_config.ImageColumn("Logo", width="small"),
-        "symbol": st.column_config.TextColumn("Symbol", width="small"),
-        "name": st.column_config.TextColumn("Name", width="medium"),
-        "avg_price_90d": st.column_config.TextColumn("Avg Price (90D)", width="small"),
-        "volatility_score": st.column_config.TextColumn("Volatility Score (σ)", width="small"),
-    }
-)
+render_dark_table(volatility_df, [
+    {"col": "image", "label": "Logo", "type": "image"},
+    {"col": "symbol", "label": "Symbol", "type": "text"},
+    {"col": "name", "label": "Name", "type": "text"},
+    {"col": "avg_price_90d", "label": "Avg Price (90D)", "type": "text"},
+    {"col": "volatility_score", "label": "Volatility Score (σ)", "type": "text"},
+])
 
 st.divider()
 
@@ -565,31 +606,21 @@ def build_table(df, ascending):
     )
     return result
 
-col_config = {
-    "image": st.column_config.ImageColumn("Logo", width="small"),
-    "symbol": st.column_config.TextColumn("Symbol", width="small"),
-    "name": st.column_config.TextColumn("Name", width="medium"),
-    "current_price": st.column_config.TextColumn("Price", width="small"),
-    "price_change_percentage_24h": st.column_config.TextColumn("24h Change", width="small"),
-}
+gainers_losers_config = [
+    {"col": "image", "label": "Logo", "type": "image"},
+    {"col": "symbol", "label": "Symbol", "type": "text"},
+    {"col": "name", "label": "Name", "type": "text"},
+    {"col": "current_price", "label": "Price", "type": "text"},
+    {"col": "price_change_percentage_24h", "label": "24h Change", "type": "change"},
+]
 
 with col1:
     st.markdown("### 🟢 Top Gainers")
-    st.dataframe(
-        build_table(coins, ascending=False),
-        hide_index=True,
-        width="stretch",
-        column_config=col_config
-    )
+    render_dark_table(build_table(coins, ascending=False), gainers_losers_config)
 
 with col2:
     st.markdown("### 🔴 Top Losers")
-    st.dataframe(
-        build_table(coins, ascending=True),
-        hide_index=True,
-        width="stretch",
-        column_config=col_config
-    )
+    render_dark_table(build_table(coins, ascending=True), gainers_losers_config)
 
 st.divider()
 

@@ -419,9 +419,9 @@ fig_treemap = px.treemap(
     path=[px.Constant("Crypto Market"), "name"],
     values="market_cap",
     color="price_change_percentage_24h",
-    color_continuous_scale=[[0, "#f85149"], [0.5, "#30363d"], [1, "#3fb950"]],
+    color_continuous_scale=[[0, "#f85149"], [0.5, "#1a3a2a"], [1, "#3fb950"]],
     color_continuous_midpoint=0,
-    range_color=[-10, 10],
+    range_color=[-3, 3],
     custom_data=["symbol", "share", "price_change_percentage_24h"]
 )
 

@@ -1,10 +1,9 @@
+import os
 import time
 from datetime import datetime
 
 import dlt
 import requests
-
-import os
 from dotenv import load_dotenv
 
 # ------------------------------------------------------------
@@ -20,6 +19,14 @@ HEADERS = {
     "User-Agent": "itc6050-project-group3",
     "x-cg-demo-api-key": os.getenv("COINGECKO_API_KEY")
 }
+
+MARKETS_URL = (
+    "https://api.coingecko.com/api/v3/coins/markets"
+    "?vs_currency=usd"
+    "&order=market_cap_desc"
+    "&per_page=50"
+    "&page=1"
+)
 
 
 # ------------------------------------------------------------
@@ -54,6 +61,20 @@ def get_json(url):
 
 
 # ------------------------------------------------------------
+# Fetch the top-50 markets ONCE and reuse across resources
+# ------------------------------------------------------------
+
+def get_markets():
+
+    print("Fetching top 50 markets...")
+
+    return get_json(MARKETS_URL)
+
+
+markets_data = get_markets()
+
+
+# ------------------------------------------------------------
 # Resource: coins
 # ------------------------------------------------------------
 
@@ -65,21 +86,12 @@ def get_json(url):
 )
 def coins():
 
-    url = (
-        "https://api.coingecko.com/api/v3/coins/markets"
-        "?vs_currency=usd"
-        "&order=market_cap_desc"
-        "&per_page=50"
-        "&page=1"
-    )
+    print(f"Loaded {len(markets_data)} coins")
 
-    data = get_json(url)
+    yield markets_data
 
-    print(f"Loaded {len(data)} coins")
 
-    yield data
-
-   # ------------------------------------------------------------
+# ------------------------------------------------------------
 # Resource: coin_history
 # ------------------------------------------------------------
 
@@ -93,23 +105,13 @@ def coins():
 )
 def coin_history():
 
-    markets_url = (
-        "https://api.coingecko.com/api/v3/coins/markets"
-        "?vs_currency=usd"
-        "&order=market_cap_desc"
-        "&per_page=50"
-        "&page=1"
-    )
+    print(f"Downloading history for {len(markets_data)} coins...")
 
-    coins = get_json(markets_url)
-
-    print(f"Downloading history for {len(coins)} coins...")
-
-    for index, coin in enumerate(coins, start=1):
+    for index, coin in enumerate(markets_data, start=1):
 
         coin_id = coin["id"]
 
-        print(f"[{index}/50] {coin_id}")
+        print(f"[{index}/{len(markets_data)}] {coin_id}")
 
         history_url = (
             f"https://api.coingecko.com/api/v3/coins/{coin_id}/market_chart"
@@ -143,6 +145,7 @@ def coin_history():
                 "market_cap": market_caps[i][1],
                 "total_volume": total_volumes[i][1]
             }
+
 
 # ------------------------------------------------------------
 # Pipeline
@@ -179,4 +182,3 @@ history_info = pipeline.run(
 print(history_info)
 
 print("\nPipeline completed successfully!")
- 

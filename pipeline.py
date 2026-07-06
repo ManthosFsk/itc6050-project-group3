@@ -1,6 +1,6 @@
 import os
 import time
-from datetime import datetime
+from datetime import datetime, timezone
 
 import dlt
 import requests
@@ -75,11 +75,12 @@ markets_data = get_markets()
 
 
 # ------------------------------------------------------------
-# Resource: coins
+# Resource: coins  (snapshot -> replace)
 # ------------------------------------------------------------
 
 @dlt.resource(
     name="coins",
+    write_disposition="replace",
     columns={
         "current_price": {"data_type": "double"}
     }
@@ -92,11 +93,13 @@ def coins():
 
 
 # ------------------------------------------------------------
-# Resource: coin_history
+# Resource: coin_history  (historical -> merge on coin_id + date)
 # ------------------------------------------------------------
 
 @dlt.resource(
     name="coin_history",
+    write_disposition="merge",
+    primary_key=["coin_id", "date"],
     columns={
         "price": {"data_type": "double"},
         "market_cap": {"data_type": "double"},
@@ -138,8 +141,8 @@ def coin_history():
 
             yield {
                 "coin_id": coin_id,
-                "date": datetime.utcfromtimestamp(
-                    timestamp / 1000
+                "date": datetime.fromtimestamp(
+                    timestamp / 1000, tz=timezone.utc
                 ).date(),
                 "price": prices[i][1],
                 "market_cap": market_caps[i][1],
@@ -161,11 +164,7 @@ print("\n==============================")
 print("Loading coins...")
 print("==============================")
 
-coins_info = pipeline.run(
-    coins(),
-    table_name="coins",
-    write_disposition="replace"
-)
+coins_info = pipeline.run(coins())
 
 print(coins_info)
 
@@ -173,11 +172,7 @@ print("\n==============================")
 print("Loading coin history...")
 print("==============================")
 
-history_info = pipeline.run(
-    coin_history(),
-    table_name="coin_history",
-    write_disposition="replace"
-)
+history_info = pipeline.run(coin_history())
 
 print(history_info)
 

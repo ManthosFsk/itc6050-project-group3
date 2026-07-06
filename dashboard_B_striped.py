@@ -297,7 +297,14 @@ if len(date_range) == 2:
 else:
     filtered_summary = daily_summary
 
-total_market_cap = filtered_summary["total_market_cap"].mean()
+total_market_cap = (
+    filtered_summary
+    .sort_values("date")
+    ["total_market_cap"]
+    .iloc[-1]
+    if len(filtered_summary) > 0
+    else 0
+)
 total_volume = coins.nlargest(top_n, "market_cap")["total_volume"].sum()
 coins_tracked = top_n
 top_coin = (
@@ -403,7 +410,7 @@ top_table = (
     coins
     .sort_values("market_cap", ascending=False)
     .head(top_n)
-    [["image", "symbol", "name", "current_price", "market_cap", "price_change_percentage_24h"]]
+    [["image", "symbol", "name", "current_price", "market_cap", "price_change_24h", "price_change_percentage_24h"]]
     .copy()
 )
 
@@ -411,6 +418,9 @@ top_table["symbol"] = top_table["symbol"].str.upper()
 top_table["current_price"] = top_table["current_price"].map(lambda x: f"${x:,.2f}")
 top_table["market_cap"] = top_table["market_cap"].map(
     lambda x: f"${x/1e12:.2f} T" if x >= 1e12 else f"${x/1e9:.2f} B"
+)
+top_table["price_change_24h"] = top_table["price_change_24h"].map(
+    lambda x: f"${x:,.2f}" if abs(x) >= 1 else f"${x:,.4f}"
 )
 top_table["price_change_percentage_24h"] = top_table["price_change_percentage_24h"].map(
     lambda x: f"🟢 {x:.2f}%" if x >= 0 else f"🔴 {x:.2f}%"
@@ -422,7 +432,8 @@ render_dark_table(top_table, [
     {"col": "name", "label": "Name", "type": "text"},
     {"col": "current_price", "label": "Price", "type": "text"},
     {"col": "market_cap", "label": "Market Cap", "type": "text"},
-    {"col": "price_change_percentage_24h", "label": "24h Change", "type": "change"},
+    {"col": "price_change_24h", "label": "24h Change ($)", "type": "text"},
+    {"col": "price_change_percentage_24h", "label": "24h Change (%)", "type": "change"},
 ])
 
 st.divider()
@@ -568,16 +579,16 @@ st.subheader("⚡ Volatility Ranking — 90-Day Standard Deviation")
 
 st.markdown(
     "<p style='color:#8b949e; font-size:0.9rem;'>"
-    "Higher volatility score = larger price swings over the last 90 days.</p>",
+    "Ranked by percentage volatility (std. dev. of daily % change) — a fair comparison across coins regardless of price. The dollar figure (σ) is shown alongside for reference.</p>",
     unsafe_allow_html=True
 )
 
 volatility_df = (
     coin_analytics
-    .groupby("coin_id")[["volatility_score", "avg_price_90d"]]
+    .groupby("coin_id")[["volatility_pct", "volatility_score", "avg_price_90d"]]
     .first()
     .reset_index()
-    .sort_values("volatility_score", ascending=False)
+    .sort_values("volatility_pct", ascending=False)
     .head(top_n)
     .copy()
 )
@@ -586,12 +597,15 @@ coin_meta = coins[["id", "image", "name", "symbol"]].rename(columns={"id": "coin
 volatility_df = volatility_df.merge(coin_meta, on="coin_id", how="left")
 
 volatility_df = volatility_df[[
-    "image", "symbol", "name", "avg_price_90d", "volatility_score"
+    "image", "symbol", "name", "avg_price_90d", "volatility_pct", "volatility_score"
 ]]
 
 volatility_df["symbol"] = volatility_df["symbol"].str.upper()
 volatility_df["avg_price_90d"] = volatility_df["avg_price_90d"].map(
     lambda x: f"${x:,.4f}" if x < 1 else f"${x:,.2f}"
+)
+volatility_df["volatility_pct"] = volatility_df["volatility_pct"].map(
+    lambda x: f"{x:.2f}%" if pd.notnull(x) else "N/A"
 )
 volatility_df["volatility_score"] = volatility_df["volatility_score"].map(
     lambda x: f"${x:,.4f}" if x < 1 else f"${x:,.2f}"
@@ -602,7 +616,8 @@ render_dark_table(volatility_df, [
     {"col": "symbol", "label": "Symbol", "type": "text"},
     {"col": "name", "label": "Name", "type": "text"},
     {"col": "avg_price_90d", "label": "Avg Price (90D)", "type": "text"},
-    {"col": "volatility_score", "label": "Volatility Score (σ)", "type": "text"},
+    {"col": "volatility_pct", "label": "Volatility (%)", "type": "text"},
+    {"col": "volatility_score", "label": "Volatility ($ σ)", "type": "text"},
 ])
 
 st.divider()

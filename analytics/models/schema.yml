@@ -54,3 +54,19 @@ models:
       - name: top_coin_by_volume
         tests:
           - not_null
+
+  - name: coin_price_analytics
+    description: "Per-coin price analytics: 7-day rolling average and volatility"
+
+    columns:
+      - name: coin_id
+        tests:
+          - not_null
+
+      - name: date
+        tests:
+          - not_null
+
+      - name: price
+        tests:
+          - not_null

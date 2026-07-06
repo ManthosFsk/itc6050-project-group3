@@ -15,9 +15,10 @@ renamed AS (
         image,
         current_price,
         market_cap,
-        market_cap_rank,
+        RANK() OVER (ORDER BY market_cap DESC) AS market_cap_rank,
         total_volume,
         CAST(last_updated AS TIMESTAMP) AS last_updated,
+        price_change_24h,
         price_change_percentage_24h
 
     FROM source

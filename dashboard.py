@@ -45,10 +45,14 @@ html, body, [data-testid="stAppViewContainer"], [data-testid="stApp"] {
 [data-testid="stSidebar"] input,
 [data-testid="stSidebar"] [data-baseweb="select"] div {
     color: #111827 !important;
-}         
+}
 
 /* ── KPI Cards ── */
 .kpi-card {
+    height: 160px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
     background: linear-gradient(135deg, #161b22 0%, #1c2128 100%);
     border: 1px solid #30363d;
     border-radius: 12px;
@@ -89,11 +93,6 @@ hr {
     border-color: #30363d !important;
 }
 
-/* ── Dataframe ── */
-[data-testid="stDataFrame"] {
-    background-color: #161b22 !important;
-}
-
 /* ── Selectbox / Slider ── */
 [data-testid="stSelectbox"] > div,
 [data-testid="stSlider"] {
@@ -103,7 +102,6 @@ hr {
 
 [data-testid="stMetric"] { display: none; }
 
-/* ── Equal KPI columns ── */
 [data-testid="column"] {
     padding: 0 4px !important;
 }
@@ -112,21 +110,98 @@ hr {
     height: 100%;
 }
 
-.kpi-card {
-    height: 160px;
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    background: linear-gradient(135deg, #161b22 0%, #1c2128 100%) !important;
-    border: 1px solid #30363d !important;
-    border-radius: 12px !important;
-    padding: 24px 16px 20px 16px !important;
-    text-align: center !important;
-    margin: 4px !important;
+/* ── Custom Dark Tables (Style B: striped cards) ── */
+.dark-table {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+    font-size: 14px;
+    margin-bottom: 8px;
+    border-radius: 10px;
+    overflow: hidden;
+    border: 1px solid #30363d;
+}
+
+.dark-table th {
+    text-align: left;
+    color: #8b949e;
+    font-weight: 600;
+    padding: 12px 14px;
+    text-transform: uppercase;
+    font-size: 11px;
+    letter-spacing: 0.06em;
+    background-color: #1c2128;
+    border-bottom: 1px solid #30363d;
+}
+
+.dark-table td {
+    padding: 12px 14px;
+    color: #e6edf3;
+    vertical-align: middle;
+}
+
+.dark-table tbody tr:nth-child(odd) td {
+    background-color: #10161d;
+}
+
+.dark-table tbody tr:nth-child(even) td {
+    background-color: #161b22;
+}
+
+.dark-table tbody tr:hover td {
+    background-color: #1f2733;
+}
+
+.dark-table img {
+    border-radius: 50%;
+    vertical-align: middle;
+}
+
+.change-up {
+    color: #3fb950;
+    font-weight: 700;
+    background-color: rgba(63, 185, 80, 0.1);
+    padding: 3px 8px;
+    border-radius: 6px;
+}
+.change-down {
+    color: #f85149;
+    font-weight: 700;
+    background-color: rgba(248, 81, 73, 0.1);
+    padding: 3px 8px;
+    border-radius: 6px;
 }
 
 </style>
 """, unsafe_allow_html=True)
+
+# ==========================================================
+# Dark table renderer
+# ==========================================================
+
+def render_dark_table(df, columns_config):
+    header_html = "".join(f"<th>{c['label']}</th>" for c in columns_config)
+
+    rows_html = ""
+    for _, row in df.iterrows():
+        cells = ""
+        for c in columns_config:
+            val = row[c["col"]]
+            if c["type"] == "image":
+                cells += f'<td><img src="{val}" width="24" height="24"></td>'
+            elif c["type"] == "change":
+                css_class = "change-up" if "🟢" in str(val) else "change-down"
+                cells += f'<td class="{css_class}">{val}</td>'
+            else:
+                cells += f"<td>{val}</td>"
+        rows_html += f"<tr>{cells}</tr>"
+
+    st.markdown(f"""
+    <table class="dark-table">
+        <thead><tr>{header_html}</tr></thead>
+        <tbody>{rows_html}</tbody>
+    </table>
+    """, unsafe_allow_html=True)
 
 # ==========================================================
 # PostgreSQL Connection
@@ -222,7 +297,14 @@ if len(date_range) == 2:
 else:
     filtered_summary = daily_summary
 
-total_market_cap = filtered_summary["total_market_cap"].mean()
+total_market_cap = (
+    filtered_summary
+    .sort_values("date")
+    ["total_market_cap"]
+    .iloc[-1]
+    if len(filtered_summary) > 0
+    else 0
+)
 total_volume = coins.nlargest(top_n, "market_cap")["total_volume"].sum()
 coins_tracked = top_n
 top_coin = (
@@ -341,19 +423,14 @@ top_table["price_change_percentage_24h"] = top_table["price_change_percentage_24
     lambda x: f"🟢 {x:.2f}%" if x >= 0 else f"🔴 {x:.2f}%"
 )
 
-st.dataframe(
-    top_table,
-    hide_index=True,
-    width="stretch",
-    column_config={
-        "image": st.column_config.ImageColumn("Logo", width="small"),
-        "symbol": st.column_config.TextColumn("Symbol", width="small"),
-        "name": st.column_config.TextColumn("Name", width="medium"),
-        "current_price": st.column_config.TextColumn("Price", width="small"),
-        "market_cap": st.column_config.TextColumn("Market Cap", width="small"),
-        "price_change_percentage_24h": st.column_config.TextColumn("24h Change", width="small"),
-    }
-)
+render_dark_table(top_table, [
+    {"col": "image", "label": "Logo", "type": "image"},
+    {"col": "symbol", "label": "Symbol", "type": "text"},
+    {"col": "name", "label": "Name", "type": "text"},
+    {"col": "current_price", "label": "Price", "type": "text"},
+    {"col": "market_cap", "label": "Market Cap", "type": "text"},
+    {"col": "price_change_percentage_24h", "label": "24h Change", "type": "change"},
+])
 
 st.divider()
 
@@ -373,9 +450,9 @@ fig_treemap = px.treemap(
     path=[px.Constant("Crypto Market"), "name"],
     values="market_cap",
     color="price_change_percentage_24h",
-    color_continuous_scale=[[0, "#f85149"], [0.5, "#30363d"], [1, "#3fb950"]],
+    color_continuous_scale=[[0, "#f85149"], [0.5, "#1a3a2a"], [1, "#3fb950"]],
     color_continuous_midpoint=0,
-    range_color=[-10, 10],   # ← σταθερό εύρος, ανεξάρτητο από outliers
+    range_color=[-3, 3],
     custom_data=["symbol", "share", "price_change_percentage_24h"]
 )
 
@@ -498,16 +575,16 @@ st.subheader("⚡ Volatility Ranking — 90-Day Standard Deviation")
 
 st.markdown(
     "<p style='color:#8b949e; font-size:0.9rem;'>"
-    "Higher volatility score = larger price swings over the last 90 days.</p>",
+    "Ranked by percentage volatility (std. dev. of daily % change) — a fair comparison across coins regardless of price. The dollar figure (σ) is shown alongside for reference.</p>",
     unsafe_allow_html=True
 )
 
 volatility_df = (
     coin_analytics
-    .groupby("coin_id")[["volatility_score", "avg_price_90d"]]
+    .groupby("coin_id")[["volatility_pct", "avg_price_90d"]]
     .first()
     .reset_index()
-    .sort_values("volatility_score", ascending=False)
+    .sort_values("volatility_pct", ascending=False)
     .head(top_n)
     .copy()
 )
@@ -516,29 +593,24 @@ coin_meta = coins[["id", "image", "name", "symbol"]].rename(columns={"id": "coin
 volatility_df = volatility_df.merge(coin_meta, on="coin_id", how="left")
 
 volatility_df = volatility_df[[
-    "image", "symbol", "name", "avg_price_90d", "volatility_score"
+    "image", "symbol", "name", "avg_price_90d", "volatility_pct"
 ]]
 
 volatility_df["symbol"] = volatility_df["symbol"].str.upper()
 volatility_df["avg_price_90d"] = volatility_df["avg_price_90d"].map(
     lambda x: f"${x:,.4f}" if x < 1 else f"${x:,.2f}"
 )
-volatility_df["volatility_score"] = volatility_df["volatility_score"].map(
-    lambda x: f"${x:,.4f}" if x < 1 else f"${x:,.2f}"
+volatility_df["volatility_pct"] = volatility_df["volatility_pct"].map(
+    lambda x: f"{x:.2f}%" if pd.notnull(x) else "N/A"
 )
 
-st.dataframe(
-    volatility_df,
-    hide_index=True,
-    width="stretch",
-    column_config={
-        "image": st.column_config.ImageColumn("Logo", width="small"),
-        "symbol": st.column_config.TextColumn("Symbol", width="small"),
-        "name": st.column_config.TextColumn("Name", width="medium"),
-        "avg_price_90d": st.column_config.TextColumn("Avg Price (90D)", width="small"),
-        "volatility_score": st.column_config.TextColumn("Volatility Score (σ)", width="small"),
-    }
-)
+render_dark_table(volatility_df, [
+    {"col": "image", "label": "Logo", "type": "image"},
+    {"col": "symbol", "label": "Symbol", "type": "text"},
+    {"col": "name", "label": "Name", "type": "text"},
+    {"col": "avg_price_90d", "label": "Avg Price (90D)", "type": "text"},
+    {"col": "volatility_pct", "label": "Volatility (%)", "type": "text"},
+])
 
 st.divider()
 
@@ -565,31 +637,21 @@ def build_table(df, ascending):
     )
     return result
 
-col_config = {
-    "image": st.column_config.ImageColumn("Logo", width="small"),
-    "symbol": st.column_config.TextColumn("Symbol", width="small"),
-    "name": st.column_config.TextColumn("Name", width="medium"),
-    "current_price": st.column_config.TextColumn("Price", width="small"),
-    "price_change_percentage_24h": st.column_config.TextColumn("24h Change", width="small"),
-}
+gainers_losers_config = [
+    {"col": "image", "label": "Logo", "type": "image"},
+    {"col": "symbol", "label": "Symbol", "type": "text"},
+    {"col": "name", "label": "Name", "type": "text"},
+    {"col": "current_price", "label": "Price", "type": "text"},
+    {"col": "price_change_percentage_24h", "label": "24h Change", "type": "change"},
+]
 
 with col1:
     st.markdown("### 🟢 Top Gainers")
-    st.dataframe(
-        build_table(coins, ascending=False),
-        hide_index=True,
-        width="stretch",
-        column_config=col_config
-    )
+    render_dark_table(build_table(coins, ascending=False), gainers_losers_config)
 
 with col2:
     st.markdown("### 🔴 Top Losers")
-    st.dataframe(
-        build_table(coins, ascending=True),
-        hide_index=True,
-        width="stretch",
-        column_config=col_config
-    )
+    render_dark_table(build_table(coins, ascending=True), gainers_losers_config)
 
 st.divider()
 

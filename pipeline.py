@@ -135,19 +135,41 @@ def coin_history():
             len(total_volumes)
         )
 
+        # ------------------------------------------------------------
+        # De-duplicate by date before yielding.
+        #
+        # CoinGecko's /market_chart endpoint, even with interval=daily,
+        # can return more than one intraday timestamp for the current,
+        # not-yet-complete day. Truncating those timestamps to a date
+        # would otherwise produce two rows with the same (coin_id, date)
+        # but different price/market_cap/total_volume values, which
+        # violates the (coin_id, date) primary key used for the merge
+        # load and breaks the dbt_utils uniqueness test.
+        #
+        # We keep only the LAST (most recent) data point per date,
+        # since it reflects the most up-to-date snapshot for that day.
+        # ------------------------------------------------------------
+
+        daily_points = {}
+
         for i in range(rows):
 
             timestamp = prices[i][0]
 
-            yield {
+            row_date = datetime.fromtimestamp(
+                timestamp / 1000, tz=timezone.utc
+            ).date()
+
+            daily_points[row_date] = {
                 "coin_id": coin_id,
-                "date": datetime.fromtimestamp(
-                    timestamp / 1000, tz=timezone.utc
-                ).date(),
+                "date": row_date,
                 "price": prices[i][1],
                 "market_cap": market_caps[i][1],
                 "total_volume": total_volumes[i][1]
             }
+
+        for row in daily_points.values():
+            yield row
 
 
 # ------------------------------------------------------------

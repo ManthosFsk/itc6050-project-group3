@@ -110,6 +110,18 @@ hr {
     height: 100%;
 }
 
+/* ── Reset button ── */
+[data-testid="stSidebar"] button {
+    background-color: #21262d !important;
+    color: #e6edf3 !important;
+    border: 1px solid #30363d !important;
+    width: 100%;
+}
+[data-testid="stSidebar"] button:hover {
+    background-color: #30363d !important;
+    border-color: #58a6ff !important;
+}
+
 /* ── Custom Dark Tables (Style B: striped cards) ── */
 .dark-table {
     width: 100%;
@@ -261,12 +273,19 @@ st.sidebar.markdown("")
 start_date = coin_history["date"].min().date()
 end_date = coin_history["date"].max().date()
 
+# Reset button clears the stored date_input value so the widget falls
+# back to its default (start_date, end_date) — i.e. the full 90-day range.
 date_range = st.sidebar.date_input(
     "Date Range",
     value=(start_date, end_date),
     min_value=start_date,
-    max_value=end_date
+    max_value=end_date,
+    key="date_range_input"
 )
+
+if st.sidebar.button("↺ Reset Date Range"):
+    st.session_state.pop("date_range_input", None)
+    st.rerun()
 
 # ==========================================================
 # Header
@@ -485,9 +504,19 @@ st.divider()
 # Price Trend — Line Chart with 7-Day Rolling Average
 # ==========================================================
 
-st.subheader("📈 Price Trend — Last 90 Days")
+st.subheader(f"📈 Price Trend — Top {top_n}, Last 90 Days")
 
-coin_list = coin_analytics["coin_id"].drop_duplicates().sort_values()
+# Restrict the coin dropdown to the same Top N coins shown in the
+# ranking/treemap above, instead of every coin ever present in
+# coin_price_analytics.
+top_n_coin_ids = top_coins["id"].tolist()
+
+coin_list = (
+    coin_analytics[coin_analytics["coin_id"].isin(top_n_coin_ids)]
+    ["coin_id"]
+    .drop_duplicates()
+    .sort_values()
+)
 
 selected_coin = st.selectbox(
     "Select Cryptocurrency",

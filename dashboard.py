@@ -273,18 +273,24 @@ st.sidebar.markdown("")
 start_date = coin_history["date"].min().date()
 end_date = coin_history["date"].max().date()
 
-# Reset button clears the stored date_input value so the widget falls
-# back to its default (start_date, end_date) — i.e. the full 90-day range.
+# Reset button: instead of relying on session_state.pop() for the date
+# widget (which can be unreliable across Streamlit versions), we bump a
+# counter that is part of the widget's key. Changing the key makes
+# Streamlit treat it as a brand-new widget, which always falls back to
+# `value=(start_date, end_date)` — i.e. the full 90-day range.
+if "date_reset_counter" not in st.session_state:
+    st.session_state["date_reset_counter"] = 0
+
 date_range = st.sidebar.date_input(
     "Date Range",
     value=(start_date, end_date),
     min_value=start_date,
     max_value=end_date,
-    key="date_range_input"
+    key=f"date_range_input_{st.session_state['date_reset_counter']}"
 )
 
 if st.sidebar.button("↺ Reset Date Range"):
-    st.session_state.pop("date_range_input", None)
+    st.session_state["date_reset_counter"] += 1
     st.rerun()
 
 # ==========================================================
